@@ -1,0 +1,56 @@
+{
+  "name": "unicornswipe",
+  "version": "1.0.0",
+  "description": "🦄 Find Hot Startups Nearby - A swipe-based mobile web app for startup pitches",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paarad/26-unicornswipe.git"
+  },
+  "keywords": [
+    "startup",
+    "swipe",
+    "ai",
+    "nextjs",
+    "supabase"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/paarad/26-unicornswipe/issues"
+  },
+  "homepage": "https://github.com/paarad/26-unicornswipe#readme",
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-progress": "^1.1.7",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@supabase/supabase-js": "^2.38.4",
+    "@types/node": "^20.8.7",
+    "@types/react": "^18.2.31",
+    "@types/react-dom": "^18.2.14",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^8.51.0",
+    "eslint-config-next": "^13.5.6",
+    "framer-motion": "^10.16.4",
+    "lucide-react": "^0.288.0",
+    "next": "^13.5.6",
+    "openai": "^4.12.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-swipeable": "^7.0.1",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^3.3.5",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.2.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31"
+  }
+}
