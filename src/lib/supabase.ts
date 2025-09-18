@@ -11,28 +11,35 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // =====================================================
 
 export async function getRandomPitches(count: number = 10): Promise<StartupPitch[]> {
-  const { data, error } = await supabase
-    .rpc('get_random_pitches', { limit_count: count })
+  console.log('🔍 Fetching random pitches, count:', count)
+  console.log('🔧 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...')
+  console.log('🔧 Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  
+  // Fetch ALL pitches first, then randomly select
+  console.log('📊 Fetching all pitches for proper randomization...')
+  const { data: allPitches, error: fetchError } = await supabase
+    .from('unicornswipe_startup_pitches')
+    .select('id, pitch, is_seed, category')
+    .eq('is_active', true)
 
-  if (error) {
-    console.error('Error fetching random pitches:', error)
-    // Fallback to regular query if RPC fails
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('unicornswipe_startup_pitches')
-      .select('id, pitch, is_seed, category')
-      .eq('is_active', true)
-      .limit(count)
-
-    if (fallbackError) {
-      console.error('Fallback query also failed:', fallbackError)
-      return []
-    }
-
-    // Shuffle the results
-    return (fallbackData || []).sort(() => Math.random() - 0.5)
+  if (fetchError) {
+    console.error('❌ Failed to fetch all pitches:', fetchError)
+    return []
   }
 
-  return data || []
+  if (!allPitches || allPitches.length === 0) {
+    console.error('❌ No pitches found in database')
+    return []
+  }
+
+  console.log('✅ Found', allPitches.length, 'total pitches in database')
+  
+  // Properly shuffle ALL pitches and take the requested count
+  const shuffled = allPitches.sort(() => Math.random() - 0.5)
+  const selected = shuffled.slice(0, count)
+  
+  console.log('✅ Selected', selected.length, 'random pitches from', allPitches.length, 'total')
+  return selected
 }
 
 export async function getMostPopularPitches(limit: number = 20): Promise<StartupPitch[]> {
@@ -56,35 +63,59 @@ export async function getMostPopularPitches(limit: number = 20): Promise<Startup
 export async function createSwipeSession(sessionToken?: string): Promise<string | null> {
   const sessionId = crypto.randomUUID()
   const token = sessionToken || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  
+
+  console.log('🔧 Creating session with ID:', sessionId)
+
   // Get user agent and basic analytics
   const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : ''
   const deviceType = typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop'
-  
-  const { error } = await supabase
-    .from('unicornswipe_swipe_sessions')
-    .insert({
-      id: sessionId,
-      session_token: token,
-      user_agent: userAgent,
-      device_type: deviceType,
-      swipes: [],
-      total_swipes: 0,
-      total_likes: 0,
-      total_rejects: 0
-    })
 
-  if (error) {
-    console.error('Error creating session:', error)
+  try {
+    const { error } = await supabase
+      .from('unicornswipe_swipe_sessions')
+      .insert({
+        id: sessionId,
+        session_token: token,
+        user_agent: userAgent,
+        device_type: deviceType,
+        swipes: [],
+        total_swipes: 0,
+        total_likes: 0,
+        total_rejects: 0
+      })
+
+    if (error) {
+      console.error('❌ Database error creating session:', error)
+      console.log('📝 Attempting to create session without optional fields...')
+      
+      // Try with minimal required fields only
+      const { error: minimalError } = await supabase
+        .from('unicornswipe_swipe_sessions')
+        .insert({
+          id: sessionId,
+          session_token: token
+        })
+      
+      if (minimalError) {
+        console.error('❌ Minimal session creation also failed:', minimalError)
+        return null
+      }
+      
+      console.log('✅ Session created with minimal fields')
+    } else {
+      console.log('✅ Session created successfully with all fields')
+    }
+
+    // Store session token in localStorage for anonymous users
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('unicornswipe_session_token', token)
+    }
+
+    return sessionId
+  } catch (err) {
+    console.error('❌ Unexpected error creating session:', err)
     return null
   }
-
-  // Store session token in localStorage for anonymous users
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('unicornswipe_session_token', token)
-  }
-
-  return sessionId
 }
 
 export async function getSwipeSession(sessionId: string): Promise<SwipeSession | null> {
@@ -157,22 +188,46 @@ export async function recordSwipeDecision(
   swipeOrder: number,
   decisionTimeMs?: number
 ): Promise<boolean> {
-  const { error } = await supabase
-    .from('unicornswipe_swipe_decisions')
-    .insert({
-      session_id: sessionId,
-      pitch_id: pitchId,
-      direction,
-      swipe_order: swipeOrder,
-      decision_time_ms: decisionTimeMs
-    })
+  console.log('📊 Recording swipe:', { sessionId, pitchId, direction, swipeOrder })
+  
+  try {
+    const { error } = await supabase
+      .from('unicornswipe_swipe_decisions')
+      .insert({
+        session_id: sessionId,
+        pitch_id: pitchId,
+        direction,
+        swipe_order: swipeOrder,
+        decision_time_ms: decisionTimeMs
+      })
 
-  if (error) {
-    console.error('Error recording swipe decision:', error)
+    if (error) {
+      console.error('❌ Error recording swipe decision:', error)
+      
+      // Try with minimal required fields
+      const { error: minimalError } = await supabase
+        .from('unicornswipe_swipe_decisions')
+        .insert({
+          session_id: sessionId,
+          pitch_id: pitchId,
+          direction
+        })
+      
+      if (minimalError) {
+        console.error('❌ Minimal swipe recording also failed:', minimalError)
+        return false
+      }
+      
+      console.log('✅ Swipe recorded with minimal fields')
+      return true
+    }
+
+    console.log('✅ Swipe recorded successfully')
+    return true
+  } catch (err) {
+    console.error('❌ Unexpected error recording swipe:', err)
     return false
   }
-
-  return true
 }
 
 export async function getSessionDecisions(sessionId: string): Promise<SwipeDecision[]> {

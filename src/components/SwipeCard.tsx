@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 
 export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
   const [isAnimating, setIsAnimating] = useState(false)
+  const [buttonAnimation, setButtonAnimation] = useState<'invest' | 'pass' | null>(null)
 
   const handleSwipe = (direction: 'left' | 'right') => {
     if (!isTopCard || isAnimating) return
@@ -17,13 +18,19 @@ export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
     
     setIsAnimating(true)
     
-    // Call parent immediately
-    onSwipe(direction)
+    // Trigger button animation
+    setButtonAnimation(direction === 'left' ? 'pass' : 'invest')
+    
+    // Delay calling parent to show animation
+    setTimeout(() => {
+      onSwipe(direction)
+    }, 600)
     
     // Reset animation state
     setTimeout(() => {
       setIsAnimating(false)
-    }, 300)
+      setButtonAnimation(null)
+    }, 800)
   }
 
   // Smart category detection based on pitch content
@@ -41,14 +48,36 @@ export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
       className={cn(
         "absolute inset-4 transition-all duration-300",
         isTopCard ? "z-10" : "z-0 opacity-80 scale-95",
-        isAnimating && "opacity-50"
+        buttonAnimation === 'invest' && "scale-105 drop-shadow-2xl",
+        buttonAnimation === 'pass' && "scale-105 drop-shadow-2xl"
       )}
     >
       <Card className={cn(
-        "h-full w-full border-2 shadow-2xl transition-all duration-300",
-        isTopCard ? "border-border shadow-lg" : "border-muted shadow-md"
+        "h-full w-full border-2 shadow-2xl transition-all duration-300 relative overflow-hidden",
+        isTopCard ? "border-border shadow-lg" : "border-muted shadow-md",
+        buttonAnimation === 'invest' && "card-glow-green border-green-400",
+        buttonAnimation === 'pass' && "card-glow-red border-red-400"
       )}>
-        <CardContent className="p-8 h-full flex flex-col justify-between">
+        {/* Color overlay during animation */}
+        {buttonAnimation && (
+          <div className={cn(
+            "absolute inset-0 z-10 transition-all duration-300 pointer-events-none",
+            buttonAnimation === 'invest' 
+              ? "bg-green-500/20 border-green-400/50" 
+              : "bg-red-500/20 border-red-400/50"
+          )} />
+        )}
+        
+        {/* Button action overlay */}
+        {buttonAnimation && (
+          <div className={cn(
+            "absolute inset-0 z-15 transition-all duration-700 pointer-events-none",
+            buttonAnimation === 'invest' 
+              ? "bg-green-100" 
+              : "bg-red-100"
+          )} />
+        )}
+        <CardContent className="relative z-20 p-8 h-full flex flex-col justify-between animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
           {/* Header */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -96,11 +125,24 @@ export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
                   console.log('❌ REJECT BUTTON CLICKED - isTopCard:', isTopCard)
                   handleSwipe('left')
                 }}
-                className="flex-1 py-4 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-colors flex items-center justify-center space-x-2 group"
+                className={cn(
+                  "flex-1 py-4 rounded-xl border-2 transition-all duration-300 flex items-center justify-center space-x-2 group",
+                  buttonAnimation === 'pass' 
+                    ? "border-red-500 bg-red-500 text-white reject-pulse giggle" 
+                    : "border-red-200 bg-red-50 hover:bg-red-100"
+                )}
                 disabled={!isTopCard || isAnimating}
               >
-                <X className="w-5 h-5 text-red-600 group-hover:scale-110 transition-transform" />
-                <span className="font-medium text-red-700">Pass</span>
+                <X className={cn(
+                  "w-5 h-5 transition-all duration-300",
+                  buttonAnimation === 'pass' 
+                    ? "text-white scale-125" 
+                    : "text-red-600 group-hover:scale-110"
+                )} />
+                <span className={cn(
+                  "font-medium transition-all duration-300",
+                  buttonAnimation === 'pass' ? "text-white" : "text-red-700"
+                )}>Pass</span>
               </button>
               
               <button
@@ -108,11 +150,24 @@ export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
                   console.log('✅ INVEST BUTTON CLICKED - isTopCard:', isTopCard)
                   handleSwipe('right')
                 }}
-                className="flex-1 py-4 rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 transition-colors flex items-center justify-center space-x-2 group"
+                className={cn(
+                  "flex-1 py-4 rounded-xl border-2 transition-all duration-300 flex items-center justify-center space-x-2 group",
+                  buttonAnimation === 'invest' 
+                    ? "border-green-500 bg-green-500 text-white success-pulse giggle" 
+                    : "border-green-200 bg-green-50 hover:bg-green-100"
+                )}
                 disabled={!isTopCard || isAnimating}
               >
-                <Heart className="w-5 h-5 text-green-600 group-hover:scale-110 transition-transform" />
-                <span className="font-medium text-green-700">Invest</span>
+                <Heart className={cn(
+                  "w-5 h-5 transition-all duration-300",
+                  buttonAnimation === 'invest' 
+                    ? "text-white scale-125" 
+                    : "text-green-600 group-hover:scale-110"
+                )} />
+                <span className={cn(
+                  "font-medium transition-all duration-300",
+                  buttonAnimation === 'invest' ? "text-white" : "text-green-700"
+                )}>Invest</span>
               </button>
             </div>
           </div>

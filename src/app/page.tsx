@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Sparkles, RotateCcw, Heart, X } from 'lucide-react'
 import type { StartupPitch, SwipeDecision } from '@/types'
 import { getRandomPitches, createSwipeSession, recordSwipeDecision, analytics } from '@/lib/supabase'
-import { generateFounderArchetype } from '@/lib/openai'
+// import { generateFounderArchetype } from '@/lib/openai' // Temporarily disabled
 
 export default function HomePage() {
   const router = useRouter()
@@ -26,14 +26,12 @@ export default function HomePage() {
       try {
         console.log('🦄 Initializing UnicornSwipe with Supabase...')
         
-        // Create a new session
-        const newSessionId = await createSwipeSession()
-        if (!newSessionId) {
-          throw new Error('Failed to create session')
-        }
+        // Create a proper UUID for session ID
+        const newSessionId = crypto.randomUUID()
         setSessionId(newSessionId)
+        console.log('📋 Created local session ID:', newSessionId)
         
-        // Fetch random pitches from Supabase
+        // Fetch random pitches from Supabase (this works - only reads data)
         const randomPitches = await getRandomPitches(10)
         if (randomPitches.length === 0) {
           throw new Error('No pitches found in database')
@@ -41,11 +39,9 @@ export default function HomePage() {
         
         setPitches(randomPitches)
         
-        // Track session start
-        await analytics.sessionStart(newSessionId)
-        
         setIsLoading(false)
         console.log('✅ Game initialized successfully with', randomPitches.length, 'pitches')
+        console.log('📊 Note: Session tracking disabled due to RLS policies')
         
       } catch (error) {
         console.error('❌ Error initializing game with Supabase:', error)
@@ -99,23 +95,14 @@ export default function HomePage() {
       console.log('🎉 Completed 10 swipes! Generating founder archetype...')
       
       try {
-        // Generate founder archetype using OpenAI
-        const pitchTexts = pitches.slice(0, 10).map(p => p.pitch)
-        const result = await generateFounderArchetype(newSwipes, pitchTexts)
+        // AI generation temporarily disabled - just store basic results
+        console.log('📦 Storing results (AI generation temporarily disabled)')
         
-        // Save the archetype to the session
-        const { completeSwipeSession } = await import('@/lib/supabase')
-        await completeSwipeSession(sessionId, result.archetype, result.startup_pack)
-        
-        console.log('✅ Founder archetype generated and saved!')
-        
-        // Store results with AI-generated data
+        // Store results without AI-generated data
         sessionStorage.setItem('swipeResults', JSON.stringify({
           swipes: newSwipes,
           pitches: pitches.slice(0, 10),
-          sessionId,
-          archetype: result.archetype,
-          startup_pack: result.startup_pack
+          sessionId
         }))
         
       } catch (error) {
