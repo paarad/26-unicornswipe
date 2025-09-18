@@ -1,98 +1,144 @@
 import OpenAI from 'openai'
-import type { FounderArchetype, StartupPack, SwipeDecision, StartupPitch } from '@/types'
+import type { SwipeDecision, FounderArchetype, StartupPack } from '@/types'
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY!,
 })
 
 export async function generateFounderArchetype(
-  swipes: SwipeDecision[], 
-  pitches: StartupPitch[]
+  swipeDecisions: SwipeDecision[],
+  pitches: string[]
 ): Promise<{ archetype: FounderArchetype; startup_pack: StartupPack }> {
-  
-  // Create context from swipe decisions
-  const investedPitches = swipes
-    .filter(s => s.direction === 'right')
-    .map(s => pitches.find(p => p.id === s.pitch_id)?.pitch)
-    .filter(Boolean)
-  
-  const rejectedPitches = swipes
-    .filter(s => s.direction === 'left')
-    .map(s => pitches.find(p => p.id === s.pitch_id)?.pitch)
+  const likedPitches = swipeDecisions
+    .filter(swipe => swipe.direction === 'right')
+    .map((swipe, index) => pitches[swipe.pitch_id - 1])
     .filter(Boolean)
 
-  const investmentRate = (investedPitches.length / swipes.length) * 100
+  const rejectedPitches = swipeDecisions
+    .filter(swipe => swipe.direction === 'left')
+    .map((swipe, index) => pitches[swipe.pitch_id - 1])
+    .filter(Boolean)
 
-  const prompt = `
-You are an expert startup psychologist. Based on a user's swipe decisions on startup pitches, analyze their founder archetype and generate a complete startup pack.
+  const investmentRate = (likedPitches.length / swipeDecisions.length) * 100
 
-SWIPE DATA:
-- Total swipes: ${swipes.length}
-- Investment rate: ${investmentRate.toFixed(1)}%
-- Invested in: ${investedPitches.join('; ')}
-- Rejected: ${rejectedPitches.slice(0, 5).join('; ')}${rejectedPitches.length > 5 ? '...' : ''}
+  const prompt = `You are a startup founder personality analyzer. Based on the following swipe decisions on startup pitches, generate a founder archetype and startup pack.
 
-Create a founder archetype that captures their investment pattern and preferences. Be creative, insightful, and slightly humorous.
+LIKED PITCHES (${likedPitches.length}):
+${likedPitches.map((pitch, i) => `${i + 1}. ${pitch}`).join('\n')}
 
-FOUNDER ARCHETYPES to choose from (or create similar):
-- The Spreadsheet Freak: Lives for metrics, ROI calculations, and growth hacks
-- The Hype Founder: Attracted to buzzwords, viral potential, and shiny objects  
-- The Visionary LARPer: Dreams big but often impractical, loves "disruption"
-- The Chaos Goblin: Drawn to weird, cursed, or absurd business ideas
-- The Safe Player: Prefers proven models and incremental improvements
-- The Social Fixer: Wants to solve humanity's problems through apps
-- The AI Maximalist: Everything must have AI, even if unnecessary
+REJECTED PITCHES (${rejectedPitches.length}):
+${rejectedPitches.map((pitch, i) => `${i + 1}. ${pitch}`).join('\n')}
 
-Return ONLY a valid JSON object with this exact structure:
+INVESTMENT RATE: ${investmentRate.toFixed(1)}%
+
+Generate a JSON response with:
+1. A founder archetype with personality analysis
+2. A personalized startup pack based on their preferences
+
+Be creative, insightful, and slightly humorous. Make the archetype feel personal and accurate based on their choices.
+
+Response format:
 {
   "archetype": {
     "title": "The [Archetype Name]",
     "description": "2-3 sentence personality description",
     "traits": ["trait1", "trait2", "trait3", "trait4"],
-    "emoji": "🔥",
-    "color": "bg-gradient-to-br from-orange-400 to-red-600"
+    "emoji": "🚀",
+    "color": "#3B82F6"
   },
   "startup_pack": {
-    "company_name": "Creative startup name",
-    "user_persona": "Target customer description",
-    "tagline": "Catchy 5-7 word tagline", 
-    "viral_growth_hack": "Creative growth strategy",
-    "slogan": "🔥 Find Hot Startups Nearby."
+    "company_name": "Company Name",
+    "user_persona": "Target user description",
+    "tagline": "Catchy tagline",
+    "viral_growth_hack": "Growth strategy",
+    "slogan": "Memorable slogan"
   }
-}
-`
+}`
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [{ role: "user", content: prompt }],
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a creative startup analyst who generates insightful founder archetypes and business ideas based on investment patterns. Always respond with valid JSON only."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
       temperature: 0.8,
-      max_tokens: 800
+      max_tokens: 1000,
     })
 
     const response = completion.choices[0]?.message?.content
-    if (!response) throw new Error('No response from OpenAI')
+    if (!response) {
+      throw new Error('No response from OpenAI')
+    }
 
     const result = JSON.parse(response)
     return result
+
   } catch (error) {
-    console.error('Error generating archetype:', error)
+    console.error('Error generating founder archetype:', error)
     
-    // Fallback archetype
+    // Fallback archetype based on investment rate
+    const fallbackArchetype = getFallbackArchetype(investmentRate, likedPitches.length)
+    return fallbackArchetype
+  }
+}
+
+function getFallbackArchetype(investmentRate: number, likedCount: number): { archetype: FounderArchetype; startup_pack: StartupPack } {
+  if (investmentRate >= 70) {
     return {
       archetype: {
-        title: "The Mystery Founder",
-        description: "Your swipe pattern is as enigmatic as your startup ideas. You march to the beat of your own drum.",
-        traits: ["Unpredictable", "Creative", "Independent", "Mysterious"],
-        emoji: "🎭",
-        color: "bg-gradient-to-br from-purple-400 to-pink-600"
+        title: "The Optimistic Visionary",
+        description: "You see potential everywhere and believe in the power of innovation. Your enthusiasm is infectious, but you might need to be more selective.",
+        traits: ["Optimistic", "Risk-taking", "Innovative", "Collaborative"],
+        emoji: "🚀",
+        color: "#10B981"
       },
       startup_pack: {
-        company_name: "QuirkyVenture",
-        user_persona: "Creative professionals seeking unique solutions",
-        tagline: "Where Innovation Meets Imagination",
-        viral_growth_hack: "Create mystery boxes with hints about your product",
-        slogan: "🔥 Find Hot Startups Nearby."
+        company_name: "NextWave Solutions",
+        user_persona: "Forward-thinking professionals seeking cutting-edge solutions",
+        tagline: "Innovation Without Limits",
+        viral_growth_hack: "Partner with influencers to showcase real transformation stories",
+        slogan: "Dream Big, Build Bigger"
+      }
+    }
+  } else if (investmentRate >= 40) {
+    return {
+      archetype: {
+        title: "The Balanced Strategist",
+        description: "You carefully weigh opportunities and make calculated decisions. Your measured approach leads to sustainable growth and smart investments.",
+        traits: ["Analytical", "Strategic", "Cautious", "Practical"],
+        emoji: "⚖️",
+        color: "#3B82F6"
+      },
+      startup_pack: {
+        company_name: "Equilibrium Ventures",
+        user_persona: "Professionals seeking reliable, proven solutions",
+        tagline: "Smart Choices, Steady Growth",
+        viral_growth_hack: "Create detailed ROI calculators and case studies",
+        slogan: "Progress Through Precision"
+      }
+    }
+  } else {
+    return {
+      archetype: {
+        title: "The Discerning Perfectionist",
+        description: "You have incredibly high standards and only invest in truly exceptional ideas. When you say yes, it means something special.",
+        traits: ["Selective", "High-standards", "Detail-oriented", "Quality-focused"],
+        emoji: "💎",
+        color: "#8B5CF6"
+      },
+      startup_pack: {
+        company_name: "Elite Standards Co",
+        user_persona: "Discerning customers who value premium quality",
+        tagline: "Excellence is the Standard",
+        viral_growth_hack: "Create exclusive, invite-only beta program",
+        slogan: "Few, But Exceptional"
       }
     }
   }

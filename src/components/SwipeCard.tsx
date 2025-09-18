@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useSwipeable } from 'react-swipeable'
-import { motion, useMotionValue, useTransform } from 'framer-motion'
+import { useState } from 'react'
 import { Heart, X, Lightbulb, TrendingUp } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,51 +8,27 @@ import type { SwipeCardProps } from '@/types'
 import { cn } from '@/lib/utils'
 
 export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
-  const [isDragging, setIsDragging] = useState(false)
-  const cardRef = useRef<HTMLDivElement>(null)
-  
-  const x = useMotionValue(0)
-  const rotate = useTransform(x, [-300, 300], [-30, 30])
-  const opacity = useTransform(x, [-300, -150, 0, 150, 300], [0, 1, 1, 1, 0])
-  
-  const backgroundColor = useTransform(
-    x,
-    [-300, -50, 0, 50, 300],
-    ['#ef4444', '#ffffff', '#ffffff', '#ffffff', '#22c55e']
-  )
+  const [isAnimating, setIsAnimating] = useState(false)
 
   const handleSwipe = (direction: 'left' | 'right') => {
-    if (!isTopCard) return
+    if (!isTopCard || isAnimating) return
+    
+    console.log('🎯 SwipeCard handleSwipe called:', direction, 'isTopCard:', isTopCard)
+    
+    setIsAnimating(true)
+    
+    // Call parent immediately
     onSwipe(direction)
+    
+    // Reset animation state
+    setTimeout(() => {
+      setIsAnimating(false)
+    }, 300)
   }
 
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => handleSwipe('left'),
-    onSwipedRight: () => handleSwipe('right'),
-    onSwiping: (eventData) => {
-      if (!isTopCard) return
-      const deltaX = eventData.deltaX
-      x.set(deltaX)
-      setIsDragging(true)
-    },
-    onSwiped: () => {
-      setIsDragging(false)
-      x.set(0)
-    },
-    preventScrollOnSwipe: true,
-    trackMouse: true,
-  })
-
-  const getPitchIcon = () => {
-    const lowerPitch = pitch.pitch.toLowerCase()
-    if (lowerPitch.includes('ai') || lowerPitch.includes('gpt') || lowerPitch.includes('machine learning')) {
-      return <TrendingUp className="w-5 h-5" />
-    }
-    return <Lightbulb className="w-5 h-5" />
-  }
-
-  const getPitchCategory = () => {
-    const lowerPitch = pitch.pitch.toLowerCase()
+  // Smart category detection based on pitch content
+  const getCategory = (pitchText: string): string => {
+    const lowerPitch = pitchText.toLowerCase()
     if (lowerPitch.includes('ai') || lowerPitch.includes('gpt')) return 'AI'
     if (lowerPitch.includes('saas') || lowerPitch.includes('platform')) return 'SaaS'
     if (lowerPitch.includes('app') || lowerPitch.includes('mobile')) return 'Mobile'
@@ -63,117 +37,87 @@ export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
   }
 
   return (
-    <motion.div
-      {...swipeHandlers}
+    <div
       className={cn(
-        "absolute inset-4 cursor-grab active:cursor-grabbing",
-        !isTopCard && "pointer-events-none"
+        "absolute inset-4 transition-all duration-300",
+        isTopCard ? "z-10" : "z-0 opacity-80 scale-95",
+        isAnimating && "opacity-50"
       )}
-      style={{
-        x,
-        rotate,
-        opacity: isTopCard ? opacity : 0.8,
-        zIndex: isTopCard ? 10 : 1,
-        scale: isTopCard ? 1 : 0.95,
-      }}
-      drag={isTopCard ? "x" : false}
-      dragConstraints={{ left: -300, right: 300 }}
-      dragElastic={0.1}
-      onDrag={(_, info) => {
-        if (!isTopCard) return
-        x.set(info.offset.x)
-        setIsDragging(true)
-      }}
-      onDragEnd={(_, info) => {
-        if (!isTopCard) return
-        setIsDragging(false)
-        
-        const swipeThreshold = 150
-        if (Math.abs(info.offset.x) > swipeThreshold) {
-          handleSwipe(info.offset.x > 0 ? 'right' : 'left')
-        } else {
-          x.set(0)
-        }
-      }}
-      whileHover={isTopCard ? { scale: 1.02 } : {}}
-      whileTap={isTopCard ? { scale: 0.98 } : {}}
     >
-      <Card 
-        className="h-full shadow-2xl border-2 border-neutral-200 dark:border-neutral-800 overflow-hidden relative"
-        style={{ backgroundColor: isDragging ? backgroundColor.get() : undefined }}
-      >
-        {/* Swipe Indicators */}
-        {isDragging && (
-          <>
-            <motion.div
-              className="absolute top-8 left-8 z-20"
-              style={{ opacity: useTransform(x, [-150, -50], [1, 0]) }}
-            >
-              <Badge variant="destructive" className="text-lg px-4 py-2 font-bold">
-                <X className="w-5 h-5 mr-2" />
-                REJECT
-              </Badge>
-            </motion.div>
-            
-            <motion.div
-              className="absolute top-8 right-8 z-20"
-              style={{ opacity: useTransform(x, [50, 150], [0, 1]) }}
-            >
-                           <Badge className="text-lg px-4 py-2 font-bold bg-green-500 hover:bg-green-600 text-white">
-                 <Heart className="w-5 h-5 mr-2" />
-                 INVEST
-               </Badge>
-            </motion.div>
-          </>
-        )}
-
+      <Card className={cn(
+        "h-full w-full border-2 shadow-2xl transition-all duration-300",
+        isTopCard ? "border-border shadow-lg" : "border-muted shadow-md"
+      )}>
         <CardContent className="p-8 h-full flex flex-col justify-between">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-2">
-              {getPitchIcon()}
-              <Badge variant="secondary" className="text-sm">
-                {getPitchCategory()}
-              </Badge>
-            </div>
-            <Badge variant="outline" className="text-xs">
-              #{pitch.id}
-            </Badge>
-          </div>
-
-          {/* Main Pitch */}
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-2xl md:text-3xl font-medium text-center leading-relaxed text-neutral-800 dark:text-neutral-200">
-              {pitch.pitch}
-            </p>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-between mt-6">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => handleSwipe('left')}
-                className="w-14 h-14 rounded-full bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 flex items-center justify-center transition-colors duration-200"
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Badge 
+                variant="secondary" 
+                className="text-xs font-medium"
               >
-                <X className="w-6 h-6 text-red-600 dark:text-red-400" />
+                {getCategory(pitch.pitch)}
+              </Badge>
+              <div className="flex space-x-1">
+                <Lightbulb className="w-4 h-4 text-yellow-500" />
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+              </div>
+            </div>
+            
+            {/* Pitch Text */}
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold leading-tight text-foreground">
+                {pitch.pitch}
+              </h2>
+              
+              {/* Visual separator */}
+              <div className="w-16 h-1 bg-gradient-to-r from-primary to-transparent rounded-full" />
+            </div>
+          </div>
+
+          {/* Bottom Actions */}
+          <div className="space-y-6">
+            {/* Swipe Hints */}
+            <div className="flex justify-between items-center text-sm text-muted-foreground">
+              <div className="flex items-center space-x-2">
+                <X className="w-4 h-4" />
+                <span>Click to reject</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span>Click to invest</span>
+                <Heart className="w-4 h-4" />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-4">
+              <button
+                onClick={() => {
+                  console.log('❌ REJECT BUTTON CLICKED - isTopCard:', isTopCard)
+                  handleSwipe('left')
+                }}
+                className="flex-1 py-4 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 transition-colors flex items-center justify-center space-x-2 group"
+                disabled={!isTopCard || isAnimating}
+              >
+                <X className="w-5 h-5 text-red-600 group-hover:scale-110 transition-transform" />
+                <span className="font-medium text-red-700">Pass</span>
               </button>
               
               <button
-                onClick={() => handleSwipe('right')}
-                className="w-14 h-14 rounded-full bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 flex items-center justify-center transition-colors duration-200"
+                onClick={() => {
+                  console.log('✅ INVEST BUTTON CLICKED - isTopCard:', isTopCard)
+                  handleSwipe('right')
+                }}
+                className="flex-1 py-4 rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 transition-colors flex items-center justify-center space-x-2 group"
+                disabled={!isTopCard || isAnimating}
               >
-                <Heart className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <Heart className="w-5 h-5 text-green-600 group-hover:scale-110 transition-transform" />
+                <span className="font-medium text-green-700">Invest</span>
               </button>
-            </div>
-
-            <div className="text-right">
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                Swipe or click to decide
-              </p>
             </div>
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   )
 } 

@@ -58,33 +58,74 @@
   }
 }
 
-/* Custom animations for swipe cards */
+/* Enhanced Tinder-style animations */
 @keyframes swipeLeft {
   0% {
-    transform: translateX(0) rotate(0deg);
+    transform: translateX(0) translateY(0) rotate(0deg) scale(1);
     opacity: 1;
   }
   100% {
-    transform: translateX(-100vw) rotate(-30deg);
+    transform: translateX(-120vw) translateY(50px) rotate(-30deg) scale(0.8);
     opacity: 0;
   }
 }
 
 @keyframes swipeRight {
   0% {
-    transform: translateX(0) rotate(0deg);
+    transform: translateX(0) translateY(0) rotate(0deg) scale(1);
     opacity: 1;
   }
   100% {
-    transform: translateX(100vw) rotate(30deg);
+    transform: translateX(120vw) translateY(-50px) rotate(30deg) scale(0.8);
     opacity: 0;
   }
 }
 
+@keyframes cardPop {
+  0% {
+    transform: scale(0.8) translateY(20px);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05) translateY(-5px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
 .swipe-left {
-  animation: swipeLeft 0.3s ease-out forwards;
+  animation: swipeLeft 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 .swipe-right {
-  animation: swipeRight 0.3s ease-out forwards;
+  animation: swipeRight 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.card-enter {
+  animation: cardPop 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.floating {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Improved touch interactions */
+.touch-none {
+  touch-action: none;
+}
+
+/* Smooth transitions for all interactive elements */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 } 

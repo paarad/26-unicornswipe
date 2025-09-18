@@ -9,20 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sparkles, RotateCcw, Heart, X } from 'lucide-react'
 import type { StartupPitch, SwipeDecision } from '@/types'
-
-// Sample pitches from the CSV data for demo purposes
-const SAMPLE_PITCHES: StartupPitch[] = [
-  { id: 1, pitch: "An AI that drafts cold emails based on LinkedIn profiles.", is_seed: true },
-  { id: 2, pitch: "Uber for blood donations, matching hospitals to nearby donors in real-time.", is_seed: true },
-  { id: 3, pitch: "A Chrome extension that replaces LinkedIn buzzwords with insults.", is_seed: true },
-  { id: 4, pitch: "Subscription service for pre-cooked, bodybuilder-approved meals by top fitness influencers.", is_seed: true },
-  { id: 5, pitch: "A tool that reverse-engineers viral tweets and suggests edits to your posts.", is_seed: true },
-  { id: 6, pitch: "SaaS that generates pitch decks based on your Notion doc.", is_seed: true },
-  { id: 7, pitch: "A co-founder matching platform based on MBTI and founder trauma.", is_seed: true },
-  { id: 8, pitch: "Zoom plugin that adds 'boredom detection' to your face during calls.", is_seed: true },
-  { id: 9, pitch: "An app that lets friends invest in your personal goals like a mini-VC.", is_seed: true },
-  { id: 10, pitch: "Generative AI for YouTube thumbnails that guarantee clicks or your money back.", is_seed: true },
-]
+import { getRandomPitches, createSwipeSession, recordSwipeDecision, analytics } from '@/lib/supabase'
+import { generateFounderArchetype } from '@/lib/openai'
 
 export default function HomePage() {
   const router = useRouter()
@@ -33,25 +21,46 @@ export default function HomePage() {
   const [sessionId, setSessionId] = useState<string>('')
 
   useEffect(() => {
-    // Initialize the game
+    // Initialize the game with Supabase data
     const initGame = async () => {
       try {
-        // For demo, use sample pitches. In production, fetch from Supabase
-        setPitches(SAMPLE_PITCHES)
-        setSessionId(crypto.randomUUID())
+        console.log('🦄 Initializing UnicornSwipe with Supabase...')
+        
+        // Create a new session
+        const newSessionId = await createSwipeSession()
+        if (!newSessionId) {
+          throw new Error('Failed to create session')
+        }
+        setSessionId(newSessionId)
+        
+        // Fetch random pitches from Supabase
+        const randomPitches = await getRandomPitches(10)
+        if (randomPitches.length === 0) {
+          throw new Error('No pitches found in database')
+        }
+        
+        setPitches(randomPitches)
+        
+        // Track session start
+        await analytics.sessionStart(newSessionId)
+        
         setIsLoading(false)
+        console.log('✅ Game initialized successfully with', randomPitches.length, 'pitches')
+        
       } catch (error) {
-        console.error('Error initializing game:', error)
-        setPitches(SAMPLE_PITCHES)
-        setSessionId(crypto.randomUUID())
+        console.error('❌ Error initializing game with Supabase:', error)
         setIsLoading(false)
+        // Show error to user instead of falling back to demo data
+        alert('Failed to connect to database. Please check your internet connection and try again.')
       }
     }
 
     initGame()
   }, [])
 
-  const handleSwipe = (direction: 'left' | 'right') => {
+  const handleSwipe = async (direction: 'left' | 'right') => {
+    console.log('🚀 Main handleSwipe called:', direction, 'currentIndex:', currentIndex, 'pitches.length:', pitches.length)
+    
     if (currentIndex >= pitches.length) return
 
     const currentPitch = pitches[currentIndex]
@@ -65,18 +74,76 @@ export default function HomePage() {
     setSwipes(newSwipes)
     setCurrentIndex(prev => prev + 1)
 
-    // After 10 swipes, navigate to results
+    // Record the swipe in Supabase
+    try {
+      if (sessionId) {
+        await recordSwipeDecision(
+          sessionId,
+          currentPitch.id,
+          direction,
+          newSwipes.length
+        )
+        
+        // Track analytics
+        await analytics.swipe(sessionId, currentPitch.id, direction)
+        await analytics.pitchView(sessionId, currentPitch.id)
+        
+        console.log(`📊 Recorded ${direction} swipe for pitch ${currentPitch.id}`)
+      }
+    } catch (error) {
+      console.error('❌ Failed to record swipe:', error)
+    }
+
+    // After 10 swipes, generate archetype and navigate to results
     if (newSwipes.length >= 10) {
-      // Store results in sessionStorage for the results page
-      sessionStorage.setItem('swipeResults', JSON.stringify({
-        swipes: newSwipes,
-        pitches: pitches.slice(0, 10),
-        sessionId
-      }))
+      console.log('🎉 Completed 10 swipes! Generating founder archetype...')
+      
+      try {
+        // Generate founder archetype using OpenAI
+        const pitchTexts = pitches.slice(0, 10).map(p => p.pitch)
+        const result = await generateFounderArchetype(newSwipes, pitchTexts)
+        
+        // Save the archetype to the session
+        const { completeSwipeSession } = await import('@/lib/supabase')
+        await completeSwipeSession(sessionId, result.archetype, result.startup_pack)
+        
+        console.log('✅ Founder archetype generated and saved!')
+        
+        // Store results with AI-generated data
+        sessionStorage.setItem('swipeResults', JSON.stringify({
+          swipes: newSwipes,
+          pitches: pitches.slice(0, 10),
+          sessionId,
+          archetype: result.archetype,
+          startup_pack: result.startup_pack
+        }))
+        
+      } catch (error) {
+        console.error('❌ Error generating founder archetype:', error)
+        
+        // Store results without AI data (fallback will be used)
+        sessionStorage.setItem('swipeResults', JSON.stringify({
+          swipes: newSwipes,
+          pitches: pitches.slice(0, 10),
+          sessionId
+        }))
+      }
+      
+      // Track session completion
+      try {
+        if (sessionId) {
+          await analytics.sessionComplete(sessionId, {
+            total_swipes: newSwipes.length,
+            investment_rate: (newSwipes.filter(s => s.direction === 'right').length / newSwipes.length) * 100
+          })
+        }
+      } catch (error) {
+        console.error('❌ Failed to track session completion:', error)
+      }
       
       setTimeout(() => {
         router.push('/results')
-      }, 500)
+      }, 1000)
     }
   }
 

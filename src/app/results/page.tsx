@@ -13,6 +13,8 @@ interface SwipeResults {
   swipes: SwipeDecision[]
   pitches: StartupPitch[]
   sessionId: string
+  archetype?: FounderArchetype
+  startup_pack?: StartupPack
 }
 
 export default function ResultsPage() {
@@ -33,8 +35,15 @@ export default function ResultsPage() {
     const parsedResults: SwipeResults = JSON.parse(storedResults)
     setResults(parsedResults)
 
-    // Generate founder archetype (demo version without OpenAI)
-    generateDemoArchetype(parsedResults)
+    // Use AI-generated archetype if available, otherwise generate demo version
+    if (parsedResults.archetype && parsedResults.startup_pack) {
+      setArchetype(parsedResults.archetype)
+      setStartupPack(parsedResults.startup_pack)
+      setIsGenerating(false)
+    } else {
+      // Fallback to demo archetype generation
+      generateDemoArchetype(parsedResults)
+    }
   }, [router])
 
   const generateDemoArchetype = (results: SwipeResults) => {
