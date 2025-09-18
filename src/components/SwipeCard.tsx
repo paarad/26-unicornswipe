@@ -14,8 +14,6 @@ export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
   const handleSwipe = (direction: 'left' | 'right') => {
     if (!isTopCard || isAnimating) return
     
-    console.log('🎯 SwipeCard handleSwipe called:', direction, 'isTopCard:', isTopCard)
-    
     setIsAnimating(true)
     
     // Trigger button animation
@@ -122,7 +120,6 @@ export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
             <div className="flex space-x-4">
               <button
                 onClick={() => {
-                  console.log('❌ REJECT BUTTON CLICKED - isTopCard:', isTopCard)
                   handleSwipe('left')
                 }}
                 className={cn(
@@ -147,7 +144,6 @@ export function SwipeCard({ pitch, onSwipe, isTopCard }: SwipeCardProps) {
               
               <button
                 onClick={() => {
-                  console.log('✅ INVEST BUTTON CLICKED - isTopCard:', isTopCard)
                   handleSwipe('right')
                 }}
                 className={cn(

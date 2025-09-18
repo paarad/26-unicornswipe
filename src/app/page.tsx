@@ -24,12 +24,15 @@ export default function HomePage() {
     // Initialize the game with Supabase data
     const initGame = async () => {
       try {
-        console.log('🦄 Initializing UnicornSwipe with Supabase...')
-        
-        // Create a proper UUID for session ID
-        const newSessionId = crypto.randomUUID()
-        setSessionId(newSessionId)
-        console.log('📋 Created local session ID:', newSessionId)
+        // Create a session in the database
+        const newSessionId = await createSwipeSession()
+        if (!newSessionId) {
+          // If session creation fails, just use a local UUID and disable DB operations
+          console.warn('Failed to create database session, running in offline mode')
+          setSessionId('') // Empty string means no DB operations
+        } else {
+          setSessionId(newSessionId)
+        }
         
         // Fetch random pitches from Supabase (this works - only reads data)
         const randomPitches = await getRandomPitches(10)
@@ -38,10 +41,7 @@ export default function HomePage() {
         }
         
         setPitches(randomPitches)
-        
         setIsLoading(false)
-        console.log('✅ Game initialized successfully with', randomPitches.length, 'pitches')
-        console.log('📊 Note: Session tracking disabled due to RLS policies')
         
       } catch (error) {
         console.error('❌ Error initializing game with Supabase:', error)
@@ -55,8 +55,6 @@ export default function HomePage() {
   }, [])
 
   const handleSwipe = async (direction: 'left' | 'right') => {
-    console.log('🚀 Main handleSwipe called:', direction, 'currentIndex:', currentIndex, 'pitches.length:', pitches.length)
-    
     if (currentIndex >= pitches.length) return
 
     const currentPitch = pitches[currentIndex]
@@ -70,9 +68,9 @@ export default function HomePage() {
     setSwipes(newSwipes)
     setCurrentIndex(prev => prev + 1)
 
-    // Record the swipe in Supabase
-    try {
-      if (sessionId) {
+    // Record the swipe in Supabase (fail silently in production)
+    if (sessionId) {
+      try {
         await recordSwipeDecision(
           sessionId,
           currentPitch.id,
@@ -83,21 +81,14 @@ export default function HomePage() {
         // Track analytics
         await analytics.swipe(sessionId, currentPitch.id, direction)
         await analytics.pitchView(sessionId, currentPitch.id)
-        
-        console.log(`📊 Recorded ${direction} swipe for pitch ${currentPitch.id}`)
+      } catch (error) {
+        // Silently fail in production
       }
-    } catch (error) {
-      console.error('❌ Failed to record swipe:', error)
     }
 
     // After 10 swipes, generate archetype and navigate to results
     if (newSwipes.length >= 10) {
-      console.log('🎉 Completed 10 swipes! Generating founder archetype...')
-      
       try {
-        // AI generation temporarily disabled - just store basic results
-        console.log('📦 Storing results (AI generation temporarily disabled)')
-        
         // Store results without AI-generated data
         sessionStorage.setItem('swipeResults', JSON.stringify({
           swipes: newSwipes,
@@ -116,16 +107,16 @@ export default function HomePage() {
         }))
       }
       
-      // Track session completion
-      try {
-        if (sessionId) {
+      // Track session completion (fail silently)
+      if (sessionId) {
+        try {
           await analytics.sessionComplete(sessionId, {
             total_swipes: newSwipes.length,
             investment_rate: (newSwipes.filter(s => s.direction === 'right').length / newSwipes.length) * 100
           })
+        } catch (error) {
+          // Silently fail in production
         }
-      } catch (error) {
-        console.error('❌ Failed to track session completion:', error)
       }
       
       setTimeout(() => {
@@ -134,10 +125,18 @@ export default function HomePage() {
     }
   }
 
-  const resetGame = () => {
+  const resetGame = async () => {
     setCurrentIndex(0)
     setSwipes([])
-    setSessionId(crypto.randomUUID())
+    
+    // Create a new session in the database
+    const newSessionId = await createSwipeSession()
+    if (!newSessionId) {
+      console.warn('Failed to create new database session, running in offline mode')
+      setSessionId('') // Empty string means no DB operations
+    } else {
+      setSessionId(newSessionId)
+    }
   }
 
   const progress = (swipes.length / 10) * 100

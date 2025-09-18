@@ -1,0 +1,19 @@
+{
+  "name": "UnicornSwipe - Find Hot Startups Nearby",
+  "short_name": "UnicornSwipe",
+  "description": "A swipe-based mobile web app where AI throws you startup pitches. Discover your founder archetype!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["entertainment", "business", "productivity"],
+  "lang": "en-US"
+} 

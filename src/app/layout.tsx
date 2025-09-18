@@ -5,6 +5,9 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NODE_ENV === 'production' 
+    ? 'https://your-domain.com' 
+    : 'http://localhost:3000'),
   title: '🦄 UnicornSwipe - Find Hot Startups Nearby',
   description: 'A swipe-based mobile web app where AI throws you startup pitches. Discover your founder archetype!',
   keywords: 'startup, swipe, tinder, founder, archetype, AI, GPT, pitches',

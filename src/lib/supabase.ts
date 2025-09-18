@@ -11,12 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // =====================================================
 
 export async function getRandomPitches(count: number = 10): Promise<StartupPitch[]> {
-  console.log('🔍 Fetching random pitches, count:', count)
-  console.log('🔧 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...')
-  console.log('🔧 Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-  
   // Fetch ALL pitches first, then randomly select
-  console.log('📊 Fetching all pitches for proper randomization...')
   const { data: allPitches, error: fetchError } = await supabase
     .from('unicornswipe_startup_pitches')
     .select('id, pitch, is_seed, category')
@@ -32,13 +27,10 @@ export async function getRandomPitches(count: number = 10): Promise<StartupPitch
     return []
   }
 
-  console.log('✅ Found', allPitches.length, 'total pitches in database')
-  
   // Properly shuffle ALL pitches and take the requested count
   const shuffled = allPitches.sort(() => Math.random() - 0.5)
   const selected = shuffled.slice(0, count)
   
-  console.log('✅ Selected', selected.length, 'random pitches from', allPitches.length, 'total')
   return selected
 }
 
@@ -64,8 +56,6 @@ export async function createSwipeSession(sessionToken?: string): Promise<string 
   const sessionId = crypto.randomUUID()
   const token = sessionToken || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-  console.log('🔧 Creating session with ID:', sessionId)
-
   // Get user agent and basic analytics
   const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : ''
   const deviceType = typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop'
@@ -85,9 +75,6 @@ export async function createSwipeSession(sessionToken?: string): Promise<string 
       })
 
     if (error) {
-      console.error('❌ Database error creating session:', error)
-      console.log('📝 Attempting to create session without optional fields...')
-      
       // Try with minimal required fields only
       const { error: minimalError } = await supabase
         .from('unicornswipe_swipe_sessions')
@@ -97,13 +84,8 @@ export async function createSwipeSession(sessionToken?: string): Promise<string 
         })
       
       if (minimalError) {
-        console.error('❌ Minimal session creation also failed:', minimalError)
         return null
       }
-      
-      console.log('✅ Session created with minimal fields')
-    } else {
-      console.log('✅ Session created successfully with all fields')
     }
 
     // Store session token in localStorage for anonymous users
@@ -112,8 +94,7 @@ export async function createSwipeSession(sessionToken?: string): Promise<string 
     }
 
     return sessionId
-  } catch (err) {
-    console.error('❌ Unexpected error creating session:', err)
+  } catch (error) {
     return null
   }
 }
@@ -188,8 +169,6 @@ export async function recordSwipeDecision(
   swipeOrder: number,
   decisionTimeMs?: number
 ): Promise<boolean> {
-  console.log('📊 Recording swipe:', { sessionId, pitchId, direction, swipeOrder })
-  
   try {
     const { error } = await supabase
       .from('unicornswipe_swipe_decisions')
@@ -202,8 +181,6 @@ export async function recordSwipeDecision(
       })
 
     if (error) {
-      console.error('❌ Error recording swipe decision:', error)
-      
       // Try with minimal required fields
       const { error: minimalError } = await supabase
         .from('unicornswipe_swipe_decisions')
@@ -214,20 +191,16 @@ export async function recordSwipeDecision(
         })
       
       if (minimalError) {
-        console.error('❌ Minimal swipe recording also failed:', minimalError)
         return false
       }
       
-      console.log('✅ Swipe recorded with minimal fields')
       return true
     }
-
-    console.log('✅ Swipe recorded successfully')
+    
     return true
-  } catch (err) {
-    console.error('❌ Unexpected error recording swipe:', err)
-    return false
-  }
+      } catch (error) {
+      return false
+    }
 }
 
 export async function getSessionDecisions(sessionId: string): Promise<SwipeDecision[]> {
@@ -281,10 +254,10 @@ export async function determineFounderArchetype(investmentRate: number): Promise
 // =====================================================
 
 export async function trackEvent(
-  eventType: string,
-  sessionId: string,
+  eventType: string, 
+  sessionId: string, 
   eventData?: any
-): Promise<void> {
+) {
   const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : ''
   const referrer = typeof window !== 'undefined' ? window.document.referrer : ''
 
@@ -298,9 +271,7 @@ export async function trackEvent(
       referrer: referrer
     })
 
-  if (error) {
-    console.error('Error tracking event:', error)
-  }
+  // Silently fail in production
 }
 
 // Convenience functions for common events
